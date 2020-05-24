@@ -1,2 +1,2 @@
-# Misc_stuff
-Random libraries/pieces of code i wrote in my spare time
+# Misc stuff
+Random libraries/pieces of code I wrote in my spare time
