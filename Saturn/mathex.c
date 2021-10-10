@@ -1,10 +1,18 @@
 #include <jo/jo.h>
 #include "mathex.h"
 
+void ex_Translate_point(jo_pos3D_fixed * toTranslate, const jo_vector_fixed * delta)
+{
+    toTranslate->x += delta->x;
+    toTranslate->y += delta->y;
+    toTranslate->z += delta->z;
+}
+
 void ex_Vector_normal(jo_vector_fixed * a)
 {
     jo_fixed length = jo_fixed_sqrt(jo_fixed_mult(a->x, a->x) + jo_fixed_mult(a->y, a->y) + jo_fixed_mult(a->z, a->z));
     
+    // Do not divide if length is zero
     if (length != 0)
     {
         a->x = jo_fixed_div(a->x, length);
@@ -19,7 +27,6 @@ jo_vector_fixed ex_Vector_cross(const jo_vector_fixed * a, const jo_vector_fixed
     cross.x = jo_fixed_mult(a->y, b->z) - jo_fixed_mult(a->z, b->y);
     cross.y = jo_fixed_mult(a->z, b->x) - jo_fixed_mult(a->x, b->z);
     cross.z = jo_fixed_mult(a->x, b->y) - jo_fixed_mult(a->y, b->x);
-    ex_Vector_normal(&cross);
     return cross;
 }
 
@@ -35,10 +42,13 @@ jo_fixed ex_Dot_product(const jo_fixed * a, const jo_fixed * b)
     return result;
 }
 
-void ex_Get_matrix_from_coordinate_system(const CoordinateSystem * coordSys, FIXED (*result)[XYZ])
+void ex_Get_matrix_from_coordinate_system(const ex_CoordinateSystem * coordSys, FIXED (*result)[XYZ])
 {
+    // Get normalized cross of direction and up vector
     jo_vector_fixed y = ex_Vector_cross(&coordSys->Dir, &coordSys->Up);
+    ex_Vector_normal(&y);
 
+    // SGL matrix is in 4x3 format
     result[0][0] = coordSys->Dir.x;
     result[1][0] = coordSys->Dir.y;
     result[2][0] = coordSys->Dir.z;
@@ -53,11 +63,11 @@ void ex_Get_matrix_from_coordinate_system(const CoordinateSystem * coordSys, FIX
     result[3][2] = coordSys->Origin.z;
 }
 
-jo_vector_fixed ex_Project_point_to_axis(const jo_vector_fixed * toProject, const jo_vector_fixed * origin, const jo_vector_fixed * direction)
+jo_pos3D_fixed ex_Project_point_to_axis(const jo_pos3D_fixed * toProject, const jo_pos3D_fixed * origin, const jo_vector_fixed * direction)
 {
     // Get vector from origin to point
     jo_fixed originPoint[XYZ];
-    originPoint[X] = toProject->x - origin->x; 
+    originPoint[X] = toProject->x - origin->x;
     originPoint[Y] = toProject->y - origin->y;
     originPoint[Z] = toProject->z - origin->z;
 
@@ -68,10 +78,10 @@ jo_vector_fixed ex_Project_point_to_axis(const jo_vector_fixed * toProject, cons
     dotDirection[Z] = direction->z;
 
     // Get dot product of axis direction and origin->point vector
-    jo_fixed dot = dot_product(originPoint, dotDirection);
+    jo_fixed dot = ex_Dot_product(originPoint, dotDirection);
 
     // Get projected point, by multipling dot product with direction vector and offseting by origin
-    jo_vector_fixed projected;
+    jo_pos3D_fixed projected;
     projected.x = jo_fixed_mult(direction->x, dot) + origin->x;
     projected.y = jo_fixed_mult(direction->y, dot) + origin->y;
     projected.z = jo_fixed_mult(direction->z, dot) + origin->z;
@@ -94,6 +104,7 @@ jo_vector_fixed ex_Rotate_vector_around_axis(const jo_vector_fixed * toRotate, c
 
         // Get cross vector between normal and direction of axis
         jo_vector_fixed cross = ex_Vector_cross(&axisNormal, direction);
+        ex_Vector_normal(&cross);
 
         // Get cos and sin
         jo_fixed cos = jo_fixed_cos(rad);
@@ -126,10 +137,10 @@ jo_vector_fixed ex_Rotate_vector_around_axis(const jo_vector_fixed * toRotate, c
     }
 }
 
-jo_vector_fixed ex_Rotate_point_around_axis(const jo_vector_fixed * toRotate, const jo_fixed rad, const jo_vector_fixed * origin, const jo_vector_fixed * direction)
+jo_pos3D_fixed ex_Rotate_point_around_axis(const jo_pos3D_fixed * toRotate, const jo_fixed rad, const jo_pos3D_fixed * origin, const jo_vector_fixed * direction)
 {
     // Get normal vector of the axis
-    jo_vector_fixed projected = ex_Project_point_to_axis(toRotate, origin, direction);
+    jo_pos3D_fixed projected = ex_Project_point_to_axis(toRotate, origin, direction);
     jo_vector_fixed axisNormal;
     axisNormal.x = projected.x - toRotate->x;
     axisNormal.y = projected.y - toRotate->y;
@@ -147,6 +158,7 @@ jo_vector_fixed ex_Rotate_point_around_axis(const jo_vector_fixed * toRotate, co
 
         // Get cross vector between normal and direction of axis
         jo_vector_fixed cross = ex_Vector_cross(&axisNormal, direction);
+        ex_Vector_normal(&cross);
 
         // Get cos and sin
         jo_fixed cos = jo_fixed_cos(rad);
@@ -161,7 +173,7 @@ jo_vector_fixed ex_Rotate_point_around_axis(const jo_vector_fixed * toRotate, co
         // Rotated normal must be normalized before it can be used, to prevent drifting
         ex_Vector_normal(&rotatedNormal);
 
-        jo_vector_fixed result;
+        jo_pos3D_fixed result;
         result.x = projected.x + jo_fixed_mult(rotatedNormal.x, radius);
         result.y = projected.y + jo_fixed_mult(rotatedNormal.y, radius);
         result.z = projected.z + jo_fixed_mult(rotatedNormal.z, radius);
@@ -170,7 +182,7 @@ jo_vector_fixed ex_Rotate_point_around_axis(const jo_vector_fixed * toRotate, co
     else
     {
         // If radius (vector length) is 0, point cannot be rotated
-        jo_vector_fixed result;
+        jo_pos3D_fixed result;
         result.x = toRotate->x;
         result.y = toRotate->y;
         result.z = toRotate->z;
