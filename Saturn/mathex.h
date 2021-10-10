@@ -33,7 +33,6 @@ void ex_Vector_normal(jo_vector_fixed * a);
  */
 jo_vector_fixed ex_Vector_cross(const jo_vector_fixed * a, const jo_vector_fixed * b);
 
-
 /** @brief Compute dot product of two vectors
  *  @param a First vector
  *  @param b Second vector
